@@ -6,6 +6,7 @@ interface TimelineProps {
   currentTime: number;
   commands: StacyCommand[];
   zoom: number;
+  isPlaying: boolean; // Add isPlaying prop
   onTimeChange: (time: number) => void;
   onCommandSelect: (command: StacyCommand) => void;
   onCommandUpdate: (commandId: string, updates: Partial<StacyCommand>) => void;
@@ -35,6 +36,7 @@ export function Timeline({
   currentTime,
   commands,
   zoom,
+  isPlaying,
   onTimeChange,
   onCommandSelect,
   onCommandUpdate,
@@ -42,22 +44,83 @@ export function Timeline({
   onZoomChange,
 }: TimelineProps) {
   const timelineRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragCommand, setDragCommand] = useState<StacyCommand | null>(null);
   const [dragOffset, setDragOffset] = useState(0);
+  const [isUserScrolling, setIsUserScrolling] = useState(false);
+  const [lastScrollTime, setLastScrollTime] = useState(0);
 
-  // Calculate timeline width based on duration and zoom
-  const timelineWidth = Math.max(800, duration * 100 * zoom);
+  // Calculate timeline width based on duration and zoom (with performance limits)
+  const timelineWidth = Math.min(20000, Math.max(800, duration * 60 * zoom));
 
   // Convert time to pixel position
   const timeToPixel = (time: number) => {
+    if (!duration) return 0; // Avoid NaN when duration is 0
     return (time / duration) * timelineWidth;
   };
 
   // Convert pixel position to time
   const pixelToTime = (pixel: number) => {
+    if (!duration) return 0; // Avoid NaN when duration is 0
     return (pixel / timelineWidth) * duration;
   };
+
+  // Auto-scroll to follow playhead during playback
+  useEffect(() => {
+    if (!isPlaying || isUserScrolling || !scrollContainerRef.current || !duration) return;
+
+    const scrollContainer = scrollContainerRef.current;
+    const playheadPosition = timeToPixel(currentTime);
+    const containerWidth = scrollContainer.clientWidth;
+    const currentScrollLeft = scrollContainer.scrollLeft;
+    
+    // Calculate if playhead is outside visible area
+    const leftEdge = currentScrollLeft;
+    const rightEdge = currentScrollLeft + containerWidth;
+    const margin = containerWidth * 0.1; // 10% margin from edges
+    
+    // Auto-scroll if playhead is near edges or outside visible area
+    if (playheadPosition < leftEdge + margin || playheadPosition > rightEdge - margin) {
+      // Center the playhead in the view
+      const targetScrollLeft = playheadPosition - containerWidth / 2;
+      
+      scrollContainer.scrollTo({
+        left: Math.max(0, targetScrollLeft),
+        behavior: 'smooth'
+      });
+    }
+  }, [currentTime, isPlaying, timelineWidth, duration, isUserScrolling]);
+
+  // Track user scrolling to temporarily disable auto-scroll
+  useEffect(() => {
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer) return;
+
+    const handleScroll = () => {
+      setIsUserScrolling(true);
+      setLastScrollTime(Date.now());
+    };
+
+    scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
+    
+    return () => {
+      scrollContainer.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  // Reset user scrolling flag after inactivity
+  useEffect(() => {
+    if (!isUserScrolling) return;
+
+    const timeout = setTimeout(() => {
+      if (Date.now() - lastScrollTime > 2000) { // 2 seconds of no scrolling
+        setIsUserScrolling(false);
+      }
+    }, 2100);
+
+    return () => clearTimeout(timeout);
+  }, [isUserScrolling, lastScrollTime]);
 
   // Handle timeline click for seeking
   const handleTimelineClick = (e: React.MouseEvent) => {
@@ -69,6 +132,9 @@ export function Timeline({
     const x = e.clientX - rect.left;
     const newTime = pixelToTime(x);
     onTimeChange(Math.max(0, Math.min(duration, newTime)));
+    
+    // Force auto-scroll to resume after seeking
+    setIsUserScrolling(false);
   };
 
   // Handle command drag
@@ -113,22 +179,42 @@ export function Timeline({
     };
   }, [isDragging, dragCommand, dragOffset, duration, onCommandUpdate]);
 
-  // Generate time markers
+  // Optimized time markers generation
   const generateTimeMarkers = () => {
     const markers = [];
-    const interval = zoom < 0.5 ? 10 : zoom < 1 ? 5 : zoom < 2 ? 1 : 0.5;
     
-    for (let time = 0; time <= duration; time += interval) {
+    // Adaptive interval based on zoom level to reduce DOM elements
+    let interval: number;
+    if (zoom < 0.3) {
+      interval = 30; // 30 second intervals for very zoomed out
+    } else if (zoom < 0.6) {
+      interval = 10; // 10 second intervals
+    } else if (zoom < 1.2) {
+      interval = 5; // 5 second intervals
+    } else if (zoom < 2.5) {
+      interval = 1; // 1 second intervals
+    } else {
+      interval = 0.5; // 0.5 second intervals for zoomed in
+    }
+    
+    // Limit total markers to prevent performance issues
+    const maxMarkers = 50;
+    const actualInterval = Math.max(interval, duration / maxMarkers);
+    
+    for (let time = 0; time <= duration; time += actualInterval) {
       const x = timeToPixel(time);
       const isSecond = time % 1 === 0;
+      const isMajor = time % (actualInterval * 2) === 0;
       
       markers.push(
         <div
           key={time}
-          className={`absolute top-0 ${isSecond ? "h-full border-gray-400" : "h-2 border-gray-600"} border-l`}
+          className={`absolute top-0 ${
+            isMajor ? "h-full border-gray-400" : isSecond ? "h-3/4 border-gray-500" : "h-1/2 border-gray-600"
+          } border-l`}
           style={{ left: x }}
         >
-          {isSecond && (
+          {isMajor && (
             <div className="absolute -top-6 -translate-x-1/2 text-xs text-gray-300">
               {formatTime(time)}
             </div>
@@ -192,7 +278,7 @@ export function Timeline({
   };
 
   return (
-    <div className="flex h-full bg-gray-900">
+    <div className="flex h-full bg-gray-900 w-full min-w-0">
       {/* Track Labels */}
       <div className="w-32 bg-gray-800 border-r border-gray-700">
         {/* Timeline header space */}
@@ -212,7 +298,10 @@ export function Timeline({
       </div>
 
       {/* Timeline Area */}
-      <div className="flex-1 overflow-auto">
+      <div 
+        ref={scrollContainerRef}
+        className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800 min-w-0"
+      >
         <div
           ref={timelineRef}
           className="relative cursor-pointer"
@@ -231,6 +320,20 @@ export function Timeline({
           >
             <div className="absolute -top-1 -left-1 w-3 h-3 bg-red-500 rounded-full"></div>
           </div>
+
+          {/* Auto-scroll indicator */}
+          {isPlaying && !isUserScrolling && (
+            <div className="absolute top-1 right-1 z-40 bg-green-600 text-white text-xs px-2 py-1 rounded">
+              Auto-following
+            </div>
+          )}
+
+          {/* User scroll indicator */}
+          {isUserScrolling && (
+            <div className="absolute top-1 right-1 z-40 bg-orange-600 text-white text-xs px-2 py-1 rounded">
+              Manual scroll
+            </div>
+          )}
 
           {/* Tracks */}
           {LIGHT_TRACKS.map((track, trackIndex) => (
@@ -278,21 +381,47 @@ export function Timeline({
       </div>
 
       {/* Zoom Controls */}
-      <div className="w-16 bg-gray-800 border-l border-gray-700 flex flex-col items-center justify-start pt-4 gap-2">
+      <div className="w-20 bg-gray-800 border-l border-gray-700 flex flex-col items-center justify-start pt-4 gap-3 flex-shrink-0">
         <button
           onClick={() => onZoomChange(Math.min(4, zoom * 1.5))}
-          className="w-8 h-8 bg-gray-600 hover:bg-gray-500 text-white rounded text-sm"
+          className="w-10 h-8 bg-gray-600 hover:bg-gray-500 text-white rounded text-sm font-bold transition-colors"
+          title="Zoom In"
         >
           +
         </button>
-        <div className="text-xs text-gray-300 rotate-90 w-8 text-center">
+        <div className="text-xs text-gray-300 text-center px-1 bg-gray-700 rounded">
           {Math.round(zoom * 100)}%
         </div>
         <button
-          onClick={() => onZoomChange(Math.max(0.25, zoom / 1.5))}
-          className="w-8 h-8 bg-gray-600 hover:bg-gray-500 text-white rounded text-sm"
+          onClick={() => onZoomChange(Math.max(0.1, zoom / 1.5))}
+          className="w-10 h-8 bg-gray-600 hover:bg-gray-500 text-white rounded text-sm font-bold transition-colors"
+          title="Zoom Out"
         >
-          -
+          −
+        </button>
+        <button
+          onClick={() => onZoomChange(1)}
+          className="w-10 h-6 bg-gray-700 hover:bg-gray-600 text-white rounded text-xs transition-colors"
+          title="Reset Zoom"
+        >
+          1:1
+        </button>
+        <button
+          onClick={() => {
+            setIsUserScrolling(false);
+            if (scrollContainerRef.current && duration > 0) {
+              const playheadPosition = timeToPixel(currentTime);
+              const containerWidth = scrollContainerRef.current.clientWidth;
+              scrollContainerRef.current.scrollTo({
+                left: Math.max(0, playheadPosition - containerWidth / 2),
+                behavior: 'smooth'
+              });
+            }
+          }}
+          className="w-10 h-6 bg-blue-700 hover:bg-blue-600 text-white rounded text-xs transition-colors"
+          title="Follow Playhead"
+        >
+          📍
         </button>
       </div>
     </div>
