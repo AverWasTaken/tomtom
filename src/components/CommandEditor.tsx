@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import type { StacyCommand, RGB } from "../types/stacypilot";
+import type { StacyCommand, RGB, CommandParameters, CueType, ActionType, BeamMode } from "../types/stacypilot";
 
 interface CommandEditorProps {
   command: StacyCommand;
@@ -59,7 +59,7 @@ export function CommandEditor({ command, onUpdate, onDelete, onClose }: CommandE
     onUpdate({ time: newTime });
   };
 
-  const handleParameterUpdate = (parameterUpdates: any) => {
+  const handleParameterUpdate = (parameterUpdates: Partial<CommandParameters>) => {
     onUpdate({
       parameters: {
         ...command.parameters,
@@ -138,8 +138,9 @@ export function CommandEditor({ command, onUpdate, onDelete, onClose }: CommandE
               <select
                 value={cueType}
                 onChange={(e) => {
-                  setCueType(e.target.value);
-                  handleParameterUpdate({ cueType: e.target.value });
+                  const value = e.target.value as CueType;
+                  setCueType(value);
+                  handleParameterUpdate({ cueType: value });
                 }}
                 className="w-full px-2 py-1 bg-gray-700 text-white rounded text-sm"
               >
@@ -199,8 +200,9 @@ export function CommandEditor({ command, onUpdate, onDelete, onClose }: CommandE
               <select
                 value={actionType}
                 onChange={(e) => {
-                  setActionType(e.target.value);
-                  handleParameterUpdate({ actionType: e.target.value });
+                  const value = e.target.value as ActionType;
+                  setActionType(value);
+                  handleParameterUpdate({ actionType: value });
                 }}
                 className="w-full px-2 py-1 bg-gray-700 text-white rounded text-sm"
               >
@@ -256,8 +258,9 @@ export function CommandEditor({ command, onUpdate, onDelete, onClose }: CommandE
             <select
               value={beamMode}
               onChange={(e) => {
-                setBeamMode(e.target.value);
-                handleParameterUpdate({ beamMode: e.target.value });
+                const value = e.target.value as BeamMode;
+                setBeamMode(value);
+                handleParameterUpdate({ beamMode: value });
               }}
               className="w-full px-2 py-1 bg-gray-700 text-white rounded text-sm"
             >

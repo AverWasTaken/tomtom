@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { TimelineProject, StacyScript, StacyScriptLine, RGB, ColorSequence } from "../types/stacypilot";
+import type { TimelineProject, StacyScript, RGB, ColorSequence } from "../types/stacypilot";
 
 interface ExportPanelProps {
   project: TimelineProject;
@@ -149,7 +149,7 @@ export function ExportPanel({ project }: ExportPanelProps) {
     }).sort((a, b) => a.Time - b.Time);
   };
 
-  const formatLuaValue = (value: any): string => {
+  const formatLuaValue = (value: string | number | boolean | RGB | ColorSequence): string => {
     if (typeof value === "string") {
       return `"${value}"`;
     } else if (typeof value === "number") {
@@ -161,7 +161,7 @@ export function ExportPanel({ project }: ExportPanelProps) {
       return `Color3.fromRGB(${value.r}, ${value.g}, ${value.b})`;
     } else if (value && typeof value === "object" && "keypoints" in value) {
       // ColorSequence
-      const keypoints = value.keypoints.map((kp: any) => 
+      const keypoints = value.keypoints.map((kp: { position: number; color: RGB }) => 
         `ColorSequenceKeypoint.new(${kp.position}, Color3.fromRGB(${kp.color.r}, ${kp.color.g}, ${kp.color.b}))`
       ).join(", ");
       return `ColorSequence.new({${keypoints}})`;
@@ -201,7 +201,7 @@ export function ExportPanel({ project }: ExportPanelProps) {
     const projectData = {
       ...project,
       audioFile: null, // Can't serialize File objects
-      audioFileName: project.audioFile?.name || null,
+      audioFileName: project.audioFile?.name ?? null,
     };
     
     const content = JSON.stringify(projectData, null, 2);
@@ -265,7 +265,7 @@ export function ExportPanel({ project }: ExportPanelProps) {
             </div>
             <div>
               <span className="text-gray-400">Audio:</span>
-              <span className="text-white ml-2">{project.audioFile?.name || "None"}</span>
+              <span className="text-white ml-2">{project.audioFile?.name ?? "None"}</span>
             </div>
           </div>
         </div>

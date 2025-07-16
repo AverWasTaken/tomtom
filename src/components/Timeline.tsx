@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import type { StacyCommand, LightType } from "../types/stacypilot";
 
 interface TimelineProps {
@@ -55,16 +55,16 @@ export function Timeline({
   const timelineWidth = Math.min(20000, Math.max(800, duration * 60 * zoom));
 
   // Convert time to pixel position
-  const timeToPixel = (time: number) => {
+  const timeToPixel = useCallback((time: number) => {
     if (!duration) return 0; // Avoid NaN when duration is 0
     return (time / duration) * timelineWidth;
-  };
+  }, [duration, timelineWidth]);
 
   // Convert pixel position to time
-  const pixelToTime = (pixel: number) => {
+  const pixelToTime = useCallback((pixel: number) => {
     if (!duration) return 0; // Avoid NaN when duration is 0
     return (pixel / timelineWidth) * duration;
-  };
+  }, [duration, timelineWidth]);
 
   // Auto-scroll to follow playhead during playback
   useEffect(() => {
@@ -90,7 +90,7 @@ export function Timeline({
         behavior: 'smooth'
       });
     }
-  }, [currentTime, isPlaying, timelineWidth, duration, isUserScrolling]);
+  }, [currentTime, isPlaying, timelineWidth, duration, isUserScrolling, timeToPixel]);
 
   // Track user scrolling to temporarily disable auto-scroll
   useEffect(() => {
@@ -177,7 +177,7 @@ export function Timeline({
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isDragging, dragCommand, dragOffset, duration, onCommandUpdate]);
+  }, [isDragging, dragCommand, dragOffset, duration, onCommandUpdate, pixelToTime]);
 
   // Optimized time markers generation
   const generateTimeMarkers = () => {
@@ -245,17 +245,17 @@ export function Timeline({
         return "Color";
       case "Cue":
         const cueState = parameters.cueValue ? "ON" : "OFF";
-        return `${parameters.cueType || "Unknown"} ${cueState}`;
+        return `${parameters.cueType ?? "Unknown"} ${cueState}`;
       case "Action":
-        return `Action ${parameters.actionType || "Unknown"}`;
+        return `Action ${parameters.actionType ?? "Unknown"}`;
       case "BeamThickness":
-        return `Thickness: ${parameters.beamThickness || 0}%`;
+        return `Thickness: ${parameters.beamThickness ?? 0}%`;
       case "Dimness":
-        return `Dimness: ${Math.round((parameters.dimness || 0) * 100)}%`;
+        return `Dimness: ${Math.round((parameters.dimness ?? 0) * 100)}%`;
       case "Tilt":
-        return `Tilt: ${parameters.tilt || 0}°`;
+        return `Tilt: ${parameters.tilt ?? 0}°`;
       case "Pan":
-        return `Pan: ${parameters.pan || 0}°`;
+        return `Pan: ${parameters.pan ?? 0}°`;
       default:
         return type;
     }
@@ -267,7 +267,7 @@ export function Timeline({
     switch (command.type) {
       case "FadeOn":
       case "FadeOff":
-        return command.parameters.fadeSpeed || 1;
+        return command.parameters.fadeSpeed ?? 1;
       case "Color":
         return 2; // Color changes might have a duration
       case "Cue":
@@ -336,7 +336,7 @@ export function Timeline({
           )}
 
           {/* Tracks */}
-          {LIGHT_TRACKS.map((track, trackIndex) => (
+          {LIGHT_TRACKS.map((track) => (
             <div
               key={track.type}
               className="relative border-b border-gray-700 bg-gray-800"

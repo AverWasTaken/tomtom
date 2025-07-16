@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useRef, useState, useImperativeHandle } from "react";
+import { forwardRef, useEffect, useRef, useState, useImperativeHandle, useCallback } from "react";
 
 interface AudioPlayerProps {
   audioUrl: string | null;
@@ -33,6 +33,7 @@ export const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
     const [isLoadingWaveform, setIsLoadingWaveform] = useState(false);
     const [isUserScrollingWaveform, setIsUserScrollingWaveform] = useState(false);
     const [lastWaveformScrollTime, setLastWaveformScrollTime] = useState(0);
+  const [beatJumpIndicator, setBeatJumpIndicator] = useState<string | null>(null);
 
     // Expose audio element ref to parent
     useImperativeHandle(ref, () => audioRef.current!, []);
@@ -97,72 +98,27 @@ export const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
     }, [isUserScrollingWaveform, lastWaveformScrollTime]);
 
     // Handle audio events
-    useEffect(() => {
+    const handleLoadedMetadata = useCallback(() => {
       const audio = audioRef.current;
       if (!audio) return;
-
-      const handleTimeUpdate = () => {
-        onTimeUpdate(audio.currentTime);
-      };
-
-      const handleDurationChange = () => {
-        onDurationChange(audio.duration || 0);
-      };
-
-      const handleLoadedMetadata = () => {
-        onDurationChange(audio.duration || 0);
-        generateAdvancedWaveform();
-      };
-
-      const handleEnded = () => {
-        onPlayStateChange(false);
-      };
-
-      audio.addEventListener("timeupdate", handleTimeUpdate);
-      audio.addEventListener("durationchange", handleDurationChange);
-      audio.addEventListener("loadedmetadata", handleLoadedMetadata);
-      audio.addEventListener("ended", handleEnded);
-
-      return () => {
-        audio.removeEventListener("timeupdate", handleTimeUpdate);
-        audio.removeEventListener("durationchange", handleDurationChange);
-        audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
-        audio.removeEventListener("ended", handleEnded);
-      };
-    }, [onTimeUpdate, onDurationChange, onPlayStateChange]);
-
-    // Control play/pause
-    useEffect(() => {
-      const audio = audioRef.current;
-      if (!audio) return;
-
-      if (isPlaying) {
-        audio.play().catch(console.error);
-      } else {
-        audio.pause();
-      }
-    }, [isPlaying]);
-
-    // Update audio time when currentTime changes externally
-    useEffect(() => {
-      const audio = audioRef.current;
-      if (!audio) return;
-
-      if (Math.abs(audio.currentTime - currentTime) > 0.1) {
-        audio.currentTime = currentTime;
-      }
-    }, [currentTime]);
+      onDurationChange(audio.duration ?? 0);
+    }, [onDurationChange]);
 
     // Advanced waveform and beat detection
-    const generateAdvancedWaveform = async () => {
+    const generateAdvancedWaveform = useCallback(async () => {
       const audio = audioRef.current;
       if (!audio || (!audioUrl && !audioFile)) return;
 
-      console.log("Starting advanced waveform generation for:", audioFile?.name || audioUrl);
+      console.log("Starting advanced waveform generation for:", audioFile?.name ?? audioUrl);
       setIsLoadingWaveform(true);
       
       try {
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const AudioContextClass = window.AudioContext ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        if (!AudioContextClass) {
+          throw new Error("AudioContext not supported");
+        }
+        
+        const audioContext = new AudioContextClass();
         let arrayBuffer: ArrayBuffer;
 
         if (audioFile) {
@@ -203,7 +159,7 @@ export const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
           let rms = 0;
           
           for (let j = blockStart; j < blockEnd; j++) {
-            const sample = rawData[j] || 0;
+            const sample = rawData[j] ?? 0;
             const absSample = Math.abs(sample);
             peak = Math.max(peak, absSample);
             rms += sample * sample;
@@ -249,18 +205,68 @@ export const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
       } finally {
         setIsLoadingWaveform(false);
       }
-    };
+    }, [audioUrl, audioFile]);
+
+    useEffect(() => {
+      const audio = audioRef.current;
+      if (!audio) return;
+
+      const handleTimeUpdate = () => {
+        onTimeUpdate(audio.currentTime);
+      };
+
+      const handleDurationChange = () => {
+        onDurationChange(audio.duration ?? 0);
+      };
+
+      const handleEnded = () => {
+        onPlayStateChange(false);
+      };
+
+      audio.addEventListener("timeupdate", handleTimeUpdate);
+      audio.addEventListener("durationchange", handleDurationChange);
+      audio.addEventListener("loadedmetadata", handleLoadedMetadata);
+      audio.addEventListener("ended", handleEnded);
+
+      return () => {
+        audio.removeEventListener("timeupdate", handleTimeUpdate);
+        audio.removeEventListener("durationchange", handleDurationChange);
+        audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
+        audio.removeEventListener("ended", handleEnded);
+      };
+    }, [onTimeUpdate, onDurationChange, onPlayStateChange, handleLoadedMetadata]);
+
+    // Control play/pause
+    useEffect(() => {
+      const audio = audioRef.current;
+      if (!audio) return;
+
+      if (isPlaying) {
+        void audio.play().catch(console.error);
+      } else {
+        audio.pause();
+      }
+    }, [isPlaying]);
+
+    // Update audio time when currentTime changes externally
+    useEffect(() => {
+      const audio = audioRef.current;
+      if (!audio) return;
+
+      if (Math.abs(audio.currentTime - currentTime) > 0.1) {
+        audio.currentTime = currentTime;
+      }
+    }, [currentTime]);
 
     // Regenerate waveform when the source changes
     useEffect(() => {
       if (audioUrl || audioFile) {
-        generateAdvancedWaveform();
+        void generateAdvancedWaveform();
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [audioUrl, audioFile]);
+    }, [generateAdvancedWaveform, audioUrl, audioFile]);
 
     // Enhanced but optimized waveform drawing with zoom support
-    const drawAdvancedWaveform = () => {
+    const drawAdvancedWaveform = useCallback(() => {
       const canvas = canvasRef.current;
       if (!canvas) return;
 
@@ -268,7 +274,7 @@ export const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
       if (!ctx) return;
 
       // Set canvas size to match the zoomed waveform width
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = window.devicePixelRatio ?? 1;
       const height = 96; // Fixed height
       
       canvas.width = waveformDisplayWidth * dpr;
@@ -387,21 +393,21 @@ export const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
           ctx.fillText(label, x, height - 4);
         }
       }
-    };
+    }, [waveformDisplayWidth, duration, waveformData, beatData, currentTime, isLoadingWaveform]);
 
     // Throttled redraw to improve performance
     const lastDrawTime = useRef(0);
-    const drawThrottled = () => {
+    const drawThrottled = useCallback(() => {
       const now = Date.now();
       if (now - lastDrawTime.current > 33) { // ~30fps max
         drawAdvancedWaveform();
         lastDrawTime.current = now;
       }
-    };
+    }, [drawAdvancedWaveform]);
 
     useEffect(() => {
       drawThrottled();
-    }, [waveformData, beatData, isLoadingWaveform, zoom]);
+    }, [drawThrottled, waveformData, beatData, isLoadingWaveform, zoom]);
 
     // Separate effect for time updates with throttling
     useEffect(() => {
@@ -410,7 +416,7 @@ export const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
       }, 33); // ~30fps for time updates
       
       return () => clearTimeout(timeoutId);
-    }, [currentTime, duration, zoom]);
+    }, [drawThrottled, currentTime, duration, zoom]);
 
     // Handle canvas resize with debouncing
     useEffect(() => {
@@ -430,7 +436,7 @@ export const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
         resizeObserver.disconnect();
         clearTimeout(resizeTimeout);
       };
-    }, [waveformData, beatData, zoom]);
+    }, [drawAdvancedWaveform, waveformData, beatData, zoom]);
 
     const formatTime = (time: number) => {
       const minutes = Math.floor(time / 60);
@@ -445,7 +451,6 @@ export const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
       const scrollContainer = waveformScrollRef.current;
       if (!canvas || !scrollContainer) return;
       
-      const rect = canvas.getBoundingClientRect();
       const containerRect = scrollContainer.getBoundingClientRect();
       const x = e.clientX - containerRect.left + scrollContainer.scrollLeft;
       const newTime = (x / waveformDisplayWidth) * duration;
@@ -460,31 +465,107 @@ export const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
       setIsUserScrollingWaveform(false);
     };
 
-    const togglePlay = () => {
-      onPlayStateChange(!isPlaying);
-    };
+      const togglePlay = () => {
+    onPlayStateChange(!isPlaying);
+  };
 
-    const toggleMute = () => {
-      setIsMuted(!isMuted);
+  const toggleMute = () => {
+    setIsMuted(!isMuted);
+    if (audioRef.current) {
+      audioRef.current.muted = !isMuted;
+    }
+  };
+
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newVolume = parseFloat(e.target.value);
+    setVolume(newVolume);
+    if (audioRef.current) {
+      audioRef.current.volume = newVolume;
+    }
+  };
+
+  // Beat navigation functions
+  const goToPreviousBeat = () => {
+    if (beatData.length === 0) return;
+    
+    // Find the last beat before current time (with small tolerance for exact matches)
+    const previousBeat = beatData
+      .filter(beat => beat.time < currentTime - 0.1)
+      .pop(); // Get the last one (closest to current time)
+    
+    if (previousBeat) {
+      onTimeUpdate(previousBeat.time);
       if (audioRef.current) {
-        audioRef.current.muted = !isMuted;
+        audioRef.current.currentTime = previousBeat.time;
+      }
+      // Force auto-scroll to resume after seeking
+      setIsUserScrollingWaveform(false);
+      // Show visual feedback
+      setBeatJumpIndicator('◀ Previous Beat');
+      setTimeout(() => setBeatJumpIndicator(null), 1000);
+    } else {
+      // If no previous beat, go to beginning
+      onTimeUpdate(0);
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+      }
+      setIsUserScrollingWaveform(false);
+      setBeatJumpIndicator('◀ Start');
+      setTimeout(() => setBeatJumpIndicator(null), 1000);
+    }
+  };
+
+  const goToNextBeat = () => {
+    if (beatData.length === 0) return;
+    
+    // Find the first beat after current time (with small tolerance for exact matches)
+    const nextBeat = beatData.find(beat => beat.time > currentTime + 0.1);
+    
+    if (nextBeat) {
+      onTimeUpdate(nextBeat.time);
+      if (audioRef.current) {
+        audioRef.current.currentTime = nextBeat.time;
+      }
+      // Force auto-scroll to resume after seeking
+      setIsUserScrollingWaveform(false);
+      // Show visual feedback
+      setBeatJumpIndicator('▶ Next Beat');
+      setTimeout(() => setBeatJumpIndicator(null), 1000);
+    }
+  };
+
+  // Check if there are previous/next beats available
+  const hasPreviousBeat = beatData.some(beat => beat.time < currentTime - 0.1);
+  const hasNextBeat = beatData.some(beat => beat.time > currentTime + 0.1);
+
+  // Keyboard shortcuts for beat navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only trigger when Ctrl/Cmd is held down to avoid interfering with other shortcuts
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key) {
+          case 'ArrowLeft':
+            e.preventDefault();
+            goToPreviousBeat();
+            break;
+          case 'ArrowRight':
+            e.preventDefault();
+            goToNextBeat();
+            break;
+        }
       }
     };
 
-    const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newVolume = parseFloat(e.target.value);
-      setVolume(newVolume);
-      if (audioRef.current) {
-        audioRef.current.volume = newVolume;
-      }
-    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [beatData, currentTime]); // Dependencies for the functions inside
 
     return (
       <div className="flex flex-col gap-4">
         {/* Hidden audio element */}
         <audio
           ref={audioRef}
-          src={audioUrl || undefined}
+          src={audioUrl ?? undefined}
           muted={isMuted}
         />
 
@@ -536,12 +617,6 @@ export const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
               >
                 📍
               </button>
-              {/* Beat count indicator */}
-              {beatData.length > 0 && (
-                <div className="bg-gray-700 bg-opacity-90 rounded px-2 py-1 text-xs text-gray-300">
-                  {beatData.length} beats
-                </div>
-              )}
             </div>
           </div>
           
@@ -587,6 +662,13 @@ export const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
                 Manual scroll
               </div>
             )}
+
+            {/* Beat jump indicator */}
+            {beatJumpIndicator && (
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 bg-orange-500 text-white px-3 py-2 rounded-lg shadow-lg border border-orange-400 animate-pulse">
+                {beatJumpIndicator}
+              </div>
+            )}
           </div>
         </div>
 
@@ -608,6 +690,35 @@ export const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
               </svg>
             )}
           </button>
+
+          {/* Beat Navigation */}
+          <div className="flex items-center gap-1 border-l border-gray-600 pl-4">
+            <button
+              onClick={goToPreviousBeat}
+              disabled={!hasPreviousBeat || beatData.length === 0}
+              className="flex h-8 w-8 items-center justify-center rounded bg-orange-600 text-white hover:bg-orange-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+              title="Previous Beat (Ctrl/Cmd + ←)"
+            >
+              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+            </button>
+            <button
+              onClick={goToNextBeat}
+              disabled={!hasNextBeat || beatData.length === 0}
+              className="flex h-8 w-8 items-center justify-center rounded bg-orange-600 text-white hover:bg-orange-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+              title="Next Beat (Ctrl/Cmd + →)"
+            >
+              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+              </svg>
+            </button>
+            {beatData.length > 0 && (
+              <div className="text-xs text-gray-400 ml-2">
+                🎵 {beatData.length} beats
+              </div>
+            )}
+          </div>
 
           {/* Time display */}
           <div className="text-sm text-gray-300 min-w-[100px] font-mono">
@@ -644,4 +755,6 @@ export const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
       </div>
     );
   }
-); 
+);
+
+AudioPlayer.displayName = 'AudioPlayer'; 

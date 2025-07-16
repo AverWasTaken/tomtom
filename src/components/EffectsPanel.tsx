@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { StacyCommand, LightType, CommandType, RGB } from "../types/stacypilot";
+import type { StacyCommand, LightType, CommandType, RGB, CommandParameters, CueType, ActionType, BeamMode } from "../types/stacypilot";
 
 interface EffectsPanelProps {
   onAddCommand: (command: Omit<StacyCommand, "id">) => void;
@@ -25,9 +25,9 @@ export function EffectsPanel({ onAddCommand, currentTime }: EffectsPanelProps) {
   const [selectedCommand, setSelectedCommand] = useState<CommandType>("On");
   const [colorValue, setColorValue] = useState<RGB>({ r: 255, g: 255, b: 255 });
   const [numberValue, setNumberValue] = useState(50);
-  const [cueType, setCueType] = useState("State.Cue1");
-  const [actionType, setActionType] = useState("Cue6");
-  const [beamMode, setBeamMode] = useState("Beam");
+  const [cueType, setCueType] = useState<CueType>("State.Cue1");
+  const [actionType, setActionType] = useState<ActionType>("Cue6");
+  const [beamMode, setBeamMode] = useState<BeamMode>("Beam");
 
   const formatTime = (time: number) => {
     const minutes = Math.floor(time / 60);
@@ -37,7 +37,7 @@ export function EffectsPanel({ onAddCommand, currentTime }: EffectsPanelProps) {
   };
 
   const handleAddCommand = () => {
-    let parameters: any = {
+    const parameters: CommandParameters = {
       lightType: selectedLightType,
     };
 
@@ -47,15 +47,15 @@ export function EffectsPanel({ onAddCommand, currentTime }: EffectsPanelProps) {
         parameters.color = colorValue;
         break;
       case "Cue":
-        parameters.cueType = cueType as any;
+        parameters.cueType = cueType;
         parameters.cueValue = true;
         break;
       case "Action":
-        parameters.actionType = actionType as any;
+        parameters.actionType = actionType;
         parameters.actionValue = false;
         break;
       case "BeamMode":
-        parameters.beamMode = beamMode as any;
+        parameters.beamMode = beamMode;
         break;
       case "BeamThickness":
         parameters.beamThickness = numberValue;
@@ -134,7 +134,7 @@ export function EffectsPanel({ onAddCommand, currentTime }: EffectsPanelProps) {
             <label className="block text-sm font-medium text-gray-300">Cue Type</label>
             <select
               value={cueType}
-              onChange={(e) => setCueType(e.target.value)}
+              onChange={(e) => setCueType(e.target.value as CueType)}
               className="w-full px-2 py-1 bg-gray-700 text-white rounded text-sm"
             >
               <option value="Random">Random</option>
@@ -165,7 +165,7 @@ export function EffectsPanel({ onAddCommand, currentTime }: EffectsPanelProps) {
             <label className="block text-sm font-medium text-gray-300">Action Type</label>
             <select
               value={actionType}
-              onChange={(e) => setActionType(e.target.value)}
+              onChange={(e) => setActionType(e.target.value as ActionType)}
               className="w-full px-2 py-1 bg-gray-700 text-white rounded text-sm"
             >
               <option value="Flash">Flash</option>
@@ -193,7 +193,7 @@ export function EffectsPanel({ onAddCommand, currentTime }: EffectsPanelProps) {
             <label className="block text-sm font-medium text-gray-300">Beam Mode</label>
             <select
               value={beamMode}
-              onChange={(e) => setBeamMode(e.target.value)}
+              onChange={(e) => setBeamMode(e.target.value as BeamMode)}
               className="w-full px-2 py-1 bg-gray-700 text-white rounded text-sm"
             >
               <option value="Gobo">Gobo</option>
@@ -370,7 +370,7 @@ export function EffectsPanel({ onAddCommand, currentTime }: EffectsPanelProps) {
                       type: "Cue",
                       parameters: {
                         lightType: selectedLightType,
-                        cueType: cue as any,
+                        cueType: cue as CueType,
                         cueValue: true
                       }
                     });
@@ -386,7 +386,7 @@ export function EffectsPanel({ onAddCommand, currentTime }: EffectsPanelProps) {
                       type: "Cue",
                       parameters: {
                         lightType: selectedLightType,
-                        cueType: cue as any,
+                        cueType: cue as CueType,
                         cueValue: false
                       }
                     });
