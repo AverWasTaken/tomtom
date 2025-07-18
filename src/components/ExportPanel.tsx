@@ -171,10 +171,11 @@ export function ExportPanel({ project }: ExportPanelProps) {
 
   const exportToLua = (): string => {
     const script = generateStacyScript();
-    return script.map(line => {
-      const dataArray = line.Data.map(formatLuaValue).join("; ");
-      return `{Time = ${line.Time}, Data = {${dataArray}}};`;
-    }).join("\n");
+    const luaLines = script.map(line => {
+      const dataStr = line.Data.map(item => formatLuaValue(item)).join(", ");
+      return `    {Time = ${line.Time}, Data = {${dataStr}}};`;
+    });
+    return `return {\n${luaLines.join("\n")}\n};`;
   };
 
   const exportToJson = (): string => {

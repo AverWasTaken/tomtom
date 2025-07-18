@@ -25,10 +25,6 @@ const LIGHT_TRACKS: Array<{ type: LightType; color: string; icon: string }> = [
   { type: "HeadsB", color: "#10B981", icon: "🔦" },
   { type: "LEDsA", color: "#3B82F6", icon: "✨" },
   { type: "LEDsB", color: "#3B82F6", icon: "✨" },
-  { type: "LEDsC", color: "#3B82F6", icon: "✨" },
-  { type: "StrobesA", color: "#F59E0B", icon: "⚡" },
-  { type: "StrobesB", color: "#F59E0B", icon: "⚡" },
-  { type: "WashesA", color: "#8B5CF6", icon: "🌊" },
 ];
 
 export function Timeline({
@@ -50,6 +46,46 @@ export function Timeline({
   const [dragOffset, setDragOffset] = useState(0);
   const [isUserScrolling, setIsUserScrolling] = useState(false);
   const [lastScrollTime, setLastScrollTime] = useState(0);
+
+  // Function to organize commands into non-overlapping tracks
+  const organizeCommandsIntoTracks = useCallback((lightType: LightType) => {
+    const lightCommands = commands
+      .filter((cmd) => cmd.parameters.lightType === lightType)
+      .sort((a, b) => a.time - b.time);
+
+    const tracks: StacyCommand[][] = [];
+
+    for (const command of lightCommands) {
+      const commandStart = command.time;
+      const commandEnd = command.time + getCommandDuration(command);
+
+      // Find a track where this command doesn't overlap
+      let placedInTrack = false;
+      for (let i = 0; i < tracks.length; i++) {
+        const track = tracks[i];
+        if (!track || track.length === 0) continue;
+        
+        const lastCommandInTrack = track[track.length - 1];
+        if (!lastCommandInTrack) continue;
+        
+        const lastCommandEnd = lastCommandInTrack.time + getCommandDuration(lastCommandInTrack);
+        
+        // If there's no overlap, place the command in this track
+        if (commandStart >= lastCommandEnd) {
+          track.push(command);
+          placedInTrack = true;
+          break;
+        }
+      }
+
+      // If no suitable track found, create a new one
+      if (!placedInTrack) {
+        tracks.push([command]);
+      }
+    }
+
+    return tracks;
+  }, [commands]);
 
   // Calculate timeline width based on duration and zoom (with performance limits)
   const timelineWidth = Math.min(20000, Math.max(800, duration * 60 * zoom));
@@ -335,48 +371,73 @@ export function Timeline({
             </div>
           )}
 
-          {/* Tracks */}
-          {LIGHT_TRACKS.map((track) => (
-            <div
-              key={track.type}
-              className="relative border-b border-gray-700 bg-gray-800"
-              style={{ height: TRACK_HEIGHT }}
-            >
-              {/* Commands for this track */}
-              {commands
-                .filter((cmd) => cmd.parameters.lightType === track.type)
-                .map((command) => {
-                  const x = timeToPixel(command.time);
-                  const width = Math.max(60, timeToPixel(getCommandDuration(command)));
-                  
-                  return (
-                    <div
-                      key={command.id}
-                      className="absolute top-1 bottom-1 rounded cursor-pointer border border-opacity-50 border-white hover:border-opacity-100 transition-all"
-                      style={{
-                        left: x,
-                        width: width,
-                        backgroundColor: track.color,
-                        opacity: dragCommand?.id === command.id ? 0.7 : 0.9,
-                      }}
-                      onMouseDown={(e) => handleCommandMouseDown(e, command)}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onCommandSelect(command);
-                      }}
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        onCommandDelete(command.id);
-                      }}
-                    >
-                      <div className="px-2 py-1 text-white text-xs font-medium truncate">
-                        {getCommandLabel(command)}
+          {/* Tracks with sub-tracks for overlapping commands */}
+          {LIGHT_TRACKS.map((lightTrack) => {
+            const subTracks = organizeCommandsIntoTracks(lightTrack.type);
+            
+            return (
+              <div key={lightTrack.type} className="relative">
+                {/* Light type header */}
+                <div className="sticky left-0 z-20 bg-gray-700 border-b border-gray-600 px-2 py-1 text-xs font-medium text-gray-300 flex items-center gap-2">
+                  <span>{lightTrack.icon}</span>
+                  <span>{lightTrack.type}</span>
+                  {subTracks.length > 1 && (
+                    <span className="bg-gray-600 text-gray-200 px-1 rounded text-xs">
+                      {subTracks.length} tracks
+                    </span>
+                  )}
+                </div>
+                
+                {/* Sub-tracks */}
+                {subTracks.map((subTrack, subTrackIndex) => (
+                  <div
+                    key={`${lightTrack.type}-${subTrackIndex}`}
+                    className="relative border-b border-gray-700 bg-gray-800"
+                    style={{ height: TRACK_HEIGHT }}
+                  >
+                    {/* Commands for this sub-track */}
+                    {subTrack.map((command) => {
+                      const x = timeToPixel(command.time);
+                      const width = Math.max(60, timeToPixel(getCommandDuration(command)));
+                      
+                      return (
+                        <div
+                          key={command.id}
+                          className="absolute top-1 bottom-1 rounded cursor-pointer border border-opacity-50 border-white hover:border-opacity-100 transition-all"
+                          style={{
+                            left: x,
+                            width: width,
+                            backgroundColor: lightTrack.color,
+                            opacity: dragCommand?.id === command.id ? 0.7 : 0.9,
+                          }}
+                          onMouseDown={(e) => handleCommandMouseDown(e, command)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onCommandSelect(command);
+                          }}
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            onCommandDelete(command.id);
+                          }}
+                        >
+                          <div className="px-2 py-1 text-white text-xs font-medium truncate">
+                            {getCommandLabel(command)}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    
+                    {/* Sub-track indicator */}
+                    {subTracks.length > 1 && (
+                      <div className="absolute right-1 top-1 text-xs text-gray-400 bg-gray-700 px-1 rounded">
+                        {subTrackIndex + 1}
                       </div>
-                    </div>
-                  );
-                })}
-            </div>
-          ))}
+                    )}
+                  </div>
+                ))}
+              </div>
+            );
+          })}
         </div>
       </div>
 

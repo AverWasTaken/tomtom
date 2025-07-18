@@ -39,11 +39,11 @@ export type BeamMode = "Gobo" | "Beam" | "NoBeam";
 
 // Cue types
 export type CueType = 
-  | "Random"
+  | "Random" | "FadeRandom" | "OldRandom" | "BumpRandom" | "Strobe"
   | "State.Cue1" | "State.Cue2" | "State.Cue3" | "State.Cue4" | "State.Cue5" | "State.Cue6"
   | "State.Cue7" | "State.Cue8" | "State.Cue9" | "State.Cue10" | "State.Cue11" | "State.Cue12"
   | "Color.ColorCue1" | "Color.ColorCue2" | "Color.ColorCue3"
-  | "Position.Tilt" | "Position.Pan";
+  | "Position.Tilt" | "Position.Pan" | "Position.RandomCircle" | "Position.RandomTilt";
 
 // Action types
 export type ActionType = 

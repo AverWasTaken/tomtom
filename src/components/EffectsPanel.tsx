@@ -24,10 +24,14 @@ export function EffectsPanel({ onAddCommand, currentTime }: EffectsPanelProps) {
   const [selectedLightType, setSelectedLightType] = useState<LightType>("HeadsA");
   const [selectedCommand, setSelectedCommand] = useState<CommandType>("On");
   const [colorValue, setColorValue] = useState<RGB>({ r: 255, g: 255, b: 255 });
+  const [oddColor, setOddColor] = useState<RGB>({ r: 253, g: 110, b: 194 });
+  const [evenColor, setEvenColor] = useState<RGB>({ r: 217, g: 0, b: 255 });
+  const [colorsLinked, setColorsLinked] = useState(false);
   const [numberValue, setNumberValue] = useState(50);
   const [cueType, setCueType] = useState<CueType>("State.Cue1");
   const [actionType, setActionType] = useState<ActionType>("Cue6");
   const [beamMode, setBeamMode] = useState<BeamMode>("Beam");
+  const [showPrestaging, setShowPrestaging] = useState(false);
 
   const formatTime = (time: number) => {
     const minutes = Math.floor(time / 60);
@@ -36,13 +40,14 @@ export function EffectsPanel({ onAddCommand, currentTime }: EffectsPanelProps) {
     return `${minutes}:${seconds.toString().padStart(2, "0")}.${centiseconds.toString().padStart(2, "0")}`;
   };
 
-  const handleAddCommand = () => {
+  const handleAddCommand = (commandType?: CommandType) => {
+    const commandToUse = commandType || selectedCommand;
     const parameters: CommandParameters = {
       lightType: selectedLightType,
     };
 
     // Add specific parameters based on command type
-    switch (selectedCommand) {
+    switch (commandToUse) {
       case "Color":
         parameters.color = colorValue;
         break;
@@ -73,7 +78,7 @@ export function EffectsPanel({ onAddCommand, currentTime }: EffectsPanelProps) {
 
     const baseCommand = {
       time: currentTime,
-      type: selectedCommand,
+      type: commandToUse,
       parameters,
     };
 
@@ -309,8 +314,7 @@ export function EffectsPanel({ onAddCommand, currentTime }: EffectsPanelProps) {
               <button
                 key={command}
                 onClick={() => {
-                  setSelectedCommand(command);
-                  handleAddCommand();
+                  handleAddCommand(command);
                 }}
                 className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm transition-colors"
               >
@@ -342,7 +346,7 @@ export function EffectsPanel({ onAddCommand, currentTime }: EffectsPanelProps) {
         {/* Add Command Button */}
         <div className="space-y-2">
           <button
-            onClick={handleAddCommand}
+            onClick={() => handleAddCommand()}
             className="w-full px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors shadow-sm"
           >
             <div className="flex items-center justify-center gap-2">
@@ -355,6 +359,308 @@ export function EffectsPanel({ onAddCommand, currentTime }: EffectsPanelProps) {
               @ {formatTime(currentTime)}
             </div>
           </button>
+        </div>
+
+        {/* Prestaging Section */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="block text-sm font-medium text-gray-300">Prestaging (Time = 0)</label>
+            <button
+              onClick={() => setShowPrestaging(!showPrestaging)}
+              className="px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-xs transition-colors"
+            >
+              {showPrestaging ? 'Hide' : 'Show'}
+            </button>
+          </div>
+          
+          {showPrestaging && (
+            <div className="space-y-3 p-3 bg-gray-800 rounded border border-purple-500">
+              {/* Color Linking */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="colorLink"
+                  checked={colorsLinked}
+                  onChange={(e) => {
+                    setColorsLinked(e.target.checked);
+                    if (e.target.checked) {
+                      setEvenColor(oddColor);
+                    }
+                  }}
+                  className="rounded"
+                />
+                <label htmlFor="colorLink" className="text-sm text-gray-300">Link Odd/Even Colors</label>
+              </div>
+              
+              {/* Odd Color Picker */}
+              <div className="space-y-2">
+                <label className="block text-xs font-medium text-gray-300">Odd Fixtures Color</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <input
+                      type="number"
+                      min="0"
+                      max="255"
+                      value={oddColor.r}
+                      onChange={(e) => {
+                        const newColor = { ...oddColor, r: parseInt(e.target.value) || 0 };
+                        setOddColor(newColor);
+                        if (colorsLinked) setEvenColor(newColor);
+                      }}
+                      className="w-full px-1 py-1 bg-gray-700 text-white rounded text-xs"
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="number"
+                      min="0"
+                      max="255"
+                      value={oddColor.g}
+                      onChange={(e) => {
+                        const newColor = { ...oddColor, g: parseInt(e.target.value) || 0 };
+                        setOddColor(newColor);
+                        if (colorsLinked) setEvenColor(newColor);
+                      }}
+                      className="w-full px-1 py-1 bg-gray-700 text-white rounded text-xs"
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="number"
+                      min="0"
+                      max="255"
+                      value={oddColor.b}
+                      onChange={(e) => {
+                        const newColor = { ...oddColor, b: parseInt(e.target.value) || 0 };
+                        setOddColor(newColor);
+                        if (colorsLinked) setEvenColor(newColor);
+                      }}
+                      className="w-full px-1 py-1 bg-gray-700 text-white rounded text-xs"
+                    />
+                  </div>
+                </div>
+                <div
+                  className="w-full h-4 rounded border border-gray-600"
+                  style={{ backgroundColor: `rgb(${oddColor.r}, ${oddColor.g}, ${oddColor.b})` }}
+                />
+              </div>
+              
+              {/* Even Color Picker */}
+              {!colorsLinked && (
+                <div className="space-y-2">
+                  <label className="block text-xs font-medium text-gray-300">Even Fixtures Color</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <input
+                        type="number"
+                        min="0"
+                        max="255"
+                        value={evenColor.r}
+                        onChange={(e) => setEvenColor(prev => ({ ...prev, r: parseInt(e.target.value) || 0 }))}
+                        className="w-full px-1 py-1 bg-gray-700 text-white rounded text-xs"
+                      />
+                    </div>
+                    <div>
+                      <input
+                        type="number"
+                        min="0"
+                        max="255"
+                        value={evenColor.g}
+                        onChange={(e) => setEvenColor(prev => ({ ...prev, g: parseInt(e.target.value) || 0 }))}
+                        className="w-full px-1 py-1 bg-gray-700 text-white rounded text-xs"
+                      />
+                    </div>
+                    <div>
+                      <input
+                        type="number"
+                        min="0"
+                        max="255"
+                        value={evenColor.b}
+                        onChange={(e) => setEvenColor(prev => ({ ...prev, b: parseInt(e.target.value) || 0 }))}
+                        className="w-full px-1 py-1 bg-gray-700 text-white rounded text-xs"
+                      />
+                    </div>
+                  </div>
+                  <div
+                    className="w-full h-4 rounded border border-gray-600"
+                    style={{ backgroundColor: `rgb(${evenColor.r}, ${evenColor.g}, ${evenColor.b})` }}
+                  />
+                </div>
+              )}
+              
+              {/* Generate Prestaging Button */}
+              <button
+                onClick={() => {
+                  // Generate prestaging commands for all fixture types
+                  const fixtureTypes: LightType[] = ["HeadsA", "HeadsB", "BarsA", "BarsB", "LEDsA", "LEDsB", "WashesA"];
+                  
+                  fixtureTypes.forEach(lightType => {
+                    // Add odd color
+                    onAddCommand({
+                      time: 0,
+                      type: "Color",
+                      parameters: {
+                        lightType,
+                        color: oddColor,
+                        colorDirection: "Odd"
+                      }
+                    });
+                    
+                    // Add even color
+                    onAddCommand({
+                      time: 0,
+                      type: "Color",
+                      parameters: {
+                        lightType,
+                        color: colorsLinked ? oddColor : evenColor,
+                        colorDirection: "Even"
+                      }
+                    });
+                  });
+                  
+                  // Add position presets
+                  onAddCommand({
+                    time: 0,
+                    type: "Cue",
+                    parameters: {
+                      lightType: "HeadsA",
+                      cueType: "Position.RandomCircle",
+                      cueValue: true
+                    }
+                  });
+                  
+                  onAddCommand({
+                    time: 0,
+                    type: "Cue",
+                    parameters: {
+                      lightType: "HeadsB",
+                      cueType: "Position.RandomCircle",
+                      cueValue: true
+                    }
+                  });
+                  
+                  onAddCommand({
+                    time: 0,
+                    type: "Cue",
+                    parameters: {
+                      lightType: "BarsA",
+                      cueType: "Position.RandomTilt",
+                      cueValue: true
+                    }
+                  });
+                  
+                  onAddCommand({
+                    time: 0,
+                    type: "Cue",
+                    parameters: {
+                      lightType: "BarsB",
+                      cueType: "Position.RandomTilt",
+                      cueValue: true
+                    }
+                  });
+                  
+                  // Reset tilt for washes
+                  onAddCommand({
+                    time: 0,
+                    type: "Tilt",
+                    parameters: {
+                      lightType: "WashesA",
+                      tilt: 0
+                    }
+                  });
+                  
+                  onAddCommand({
+                    time: 0,
+                    type: "Tilt",
+                    parameters: {
+                      lightType: "WashesA",
+                      tilt: 0
+                    }
+                  });
+                }}
+                className="w-full px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded text-sm font-medium transition-colors"
+              >
+                Generate Prestaging @ Time 0
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Scalable Command Blocks */}
+        <div className="space-y-3">
+          <label className="block text-sm font-medium text-gray-300">Scalable Command Blocks</label>
+          
+          {/* HeadsA/B Random Effects */}
+          <div className="space-y-2">
+            <h4 className="text-xs font-medium text-gray-400">Random Effects (HeadsA/B)</h4>
+            <div className="grid grid-cols-1 gap-1">
+              {["Random", "FadeRandom", "OldRandom", "BumpRandom", "Strobe"].map((effect) => (
+                <div key={effect} className="flex gap-1">
+                  <button
+                    onClick={() => {
+                      ["HeadsA", "HeadsB"].forEach(lightType => {
+                        onAddCommand({
+                          time: currentTime,
+                          type: "Cue",
+                          parameters: {
+                            lightType: lightType as LightType,
+                            cueType: effect as CueType,
+                            cueValue: true
+                          }
+                        });
+                      });
+                    }}
+                    className="flex-1 px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs font-medium transition-colors"
+                  >
+                    {effect} ON
+                  </button>
+                  <button
+                    onClick={() => {
+                      ["HeadsA", "HeadsB"].forEach(lightType => {
+                        onAddCommand({
+                          time: currentTime,
+                          type: "Cue",
+                          parameters: {
+                            lightType: lightType as LightType,
+                            cueType: effect as CueType,
+                            cueValue: false
+                          }
+                        });
+                      });
+                    }}
+                    className="flex-1 px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-medium transition-colors"
+                  >
+                    {effect} OFF
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          {/* Flash Actions */}
+          <div className="space-y-2">
+            <h4 className="text-xs font-medium text-gray-400">Flash Actions (HeadsA/B)</h4>
+            <div className="flex gap-1">
+              <button
+                onClick={() => {
+                  ["HeadsA", "HeadsB"].forEach(lightType => {
+                    onAddCommand({
+                      time: currentTime,
+                      type: "Action",
+                      parameters: {
+                        lightType: lightType as LightType,
+                        actionType: "Flash",
+                        actionValue: false
+                      }
+                    });
+                  });
+                }}
+                className="flex-1 px-2 py-1 bg-yellow-600 hover:bg-yellow-700 text-white rounded text-xs font-medium transition-colors"
+              >
+                Flash Both
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Quick Cue Actions */}
@@ -400,9 +706,43 @@ export function EffectsPanel({ onAddCommand, currentTime }: EffectsPanelProps) {
           </div>
         </div>
 
-        {/* Quick Colors */}
+        {/* Enhanced Color Picker */}
         <div className="space-y-3">
-          <label className="block text-sm font-medium text-gray-300">Quick Colors</label>
+          <label className="block text-sm font-medium text-gray-300">Enhanced Color Picker</label>
+          
+          {/* HTML Color Picker */}
+          <div className="space-y-2">
+            <input
+              type="color"
+              value={`#${colorValue.r.toString(16).padStart(2, '0')}${colorValue.g.toString(16).padStart(2, '0')}${colorValue.b.toString(16).padStart(2, '0')}`}
+              onChange={(e) => {
+                const hex = e.target.value;
+                const r = parseInt(hex.slice(1, 3), 16);
+                const g = parseInt(hex.slice(3, 5), 16);
+                const b = parseInt(hex.slice(5, 7), 16);
+                setColorValue({ r, g, b });
+              }}
+              className="w-full h-10 rounded border border-gray-600 bg-gray-700"
+            />
+            
+            <button
+              onClick={() => {
+                onAddCommand({
+                  time: currentTime,
+                  type: "Color",
+                  parameters: {
+                    lightType: selectedLightType,
+                    color: colorValue
+                  }
+                });
+              }}
+              className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition-colors"
+            >
+              Apply Color
+            </button>
+          </div>
+          
+          {/* Quick Colors */}
           <div className="grid grid-cols-3 gap-2">
             <button
               onClick={() => {
@@ -454,4 +794,4 @@ export function EffectsPanel({ onAddCommand, currentTime }: EffectsPanelProps) {
       </div>
     </div>
   );
-} 
+}
