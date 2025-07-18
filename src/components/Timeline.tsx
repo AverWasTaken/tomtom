@@ -61,8 +61,7 @@ export function Timeline({
 
       // Find a track where this command doesn't overlap
       let placedInTrack = false;
-      for (let i = 0; i < tracks.length; i++) {
-        const track = tracks[i];
+      for (const track of tracks) {
         if (!track || track.length === 0) continue;
         
         const lastCommandInTrack = track[track.length - 1];

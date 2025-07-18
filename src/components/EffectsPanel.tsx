@@ -41,7 +41,7 @@ export function EffectsPanel({ onAddCommand, currentTime }: EffectsPanelProps) {
   };
 
   const handleAddCommand = (commandType?: CommandType) => {
-    const commandToUse = commandType || selectedCommand;
+    const commandToUse = commandType ?? selectedCommand;
     const parameters: CommandParameters = {
       lightType: selectedLightType,
     };
