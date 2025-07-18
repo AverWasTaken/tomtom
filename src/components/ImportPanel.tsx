@@ -45,7 +45,7 @@ export function ImportPanel({ onImportProject, onImportCommands }: ImportPanelPr
             commands = parseLuaScript(content);
           } else if (file.name.endsWith('.json')) {
             // Parse JSON script format
-            const scriptData = JSON.parse(content);
+            const scriptData = JSON.parse(content) as Record<string, unknown>;
             commands = parseJsonScript(scriptData);
           } else {
             throw new Error("Unsupported file format. Please use .lua or .json files.");
@@ -106,12 +106,34 @@ export function ImportPanel({ onImportProject, onImportCommands }: ImportPanelPr
         const commandType = commandData[1] as string;
         const params = commandData.slice(2);
         
+        // Validate command type and light type
+        const validCommandTypes = [
+          "On", "Off", "FadeOn", "FadeOff", "Cue", "Action", "BeamMode", 
+          "BeamThickness", "GoboSpread", "Tilt", "Pan", "MotorSpeed", 
+          "RotateGobo", "Follow", "StopFollowing", "Color", "SmoothColor", 
+          "AnimatedGradients", "SetGlobalCueSetting", "SetCueSetting", 
+          "LoopCues", "CueSpeed", "FadeSpeed", "Dimness", "Reset", "HardReset"
+        ];
+        
+        const validLightTypes = [
+          "HeadsA", "HeadsB", "BarsA", "BarsB", "LEDsA", "LEDsB", "LEDsC", 
+          "StrobesA", "StrobesB", "WashesA", "WashesB"
+        ];
+        
+        if (!validCommandTypes.includes(commandType)) {
+          console.warn(`Unknown command type: ${commandType}, using 'On' as fallback`);
+        }
+        
+        if (!validLightTypes.includes(lightType)) {
+          console.warn(`Unknown light type: ${lightType}, using 'HeadsA' as fallback`);
+        }
+        
         const command: StacyCommand = {
           id: `imported-${Date.now()}-${Math.random()}`,
           time,
-          type: commandType as any, // Type assertion needed for imported commands
+          type: validCommandTypes.includes(commandType) ? commandType as StacyCommand['type'] : "On",
           parameters: {
-            lightType: lightType as any, // Type assertion needed for imported light types
+            lightType: validLightTypes.includes(lightType) ? lightType as StacyCommand['parameters']['lightType'] : "HeadsA",
             ...parseCommandParameters(commandType, params)
           }
         };
