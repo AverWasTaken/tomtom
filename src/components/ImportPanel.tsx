@@ -72,7 +72,7 @@ export function ImportPanel({ onImportProject, onImportCommands }: ImportPanelPr
   const parseLuaScript = (luaContent: string): StacyCommand[] => {
     // Extract the return statement content from Lua script
     const returnMatch = luaContent.match(/return\s*\{([\s\S]*)\}/);
-    if (!returnMatch) {
+    if (!returnMatch || !returnMatch[1]) {
       throw new Error("Invalid Lua script format - no return statement found");
     }
     
