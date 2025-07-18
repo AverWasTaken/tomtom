@@ -25,6 +25,11 @@ const LIGHT_TRACKS: Array<{ type: LightType; color: string; icon: string }> = [
   { type: "HeadsB", color: "#10B981", icon: "🔦" },
   { type: "LEDsA", color: "#3B82F6", icon: "✨" },
   { type: "LEDsB", color: "#3B82F6", icon: "✨" },
+  { type: "LEDsC", color: "#3B82F6", icon: "✨" },
+  { type: "StrobesA", color: "#F59E0B", icon: "⚡" },
+  { type: "StrobesB", color: "#F59E0B", icon: "⚡" },
+  { type: "WashesA", color: "#8B5CF6", icon: "🌊" },
+  { type: "WashesB", color: "#8B5CF6", icon: "🌊" },
 ];
 
 export function Timeline({

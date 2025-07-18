@@ -4,7 +4,7 @@ export type LightType =
   | "BarsA" | "BarsB" 
   | "LEDsA" | "LEDsB" | "LEDsC" 
   | "StrobesA" | "StrobesB" 
-  | "WashesA";
+  | "WashesA" | "WashesB";
 
 // Command types
 export type CommandType = 
