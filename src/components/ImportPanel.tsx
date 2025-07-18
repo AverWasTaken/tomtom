@@ -71,13 +71,13 @@ export function ImportPanel({ onImportProject, onImportCommands }: ImportPanelPr
 
   const parseLuaScript = (luaContent: string): StacyCommand[] => {
     // Extract the return statement content from Lua script
-    const returnMatch = luaContent.match(/return\s*\{([\s\S]*)\}/);
-    if (!returnMatch || !returnMatch[1]) {
+    const returnMatch = /return\s*\{([\s\S]*)\}/.exec(luaContent);
+    if (!returnMatch?.[1]) {
       throw new Error("Invalid Lua script format - no return statement found");
     }
     
     // Convert Lua table syntax to JSON-like format for parsing
-    let jsonContent = returnMatch[1]
+    const jsonContent = returnMatch[1]
       .replace(/\[(\d+)\]\s*=/g, '"$1":') // Convert [1] = to "1":
       .replace(/(\w+)\s*=/g, '"$1":') // Convert key = to "key":
       .replace(/\{([^}]+)\}/g, (match) => {
@@ -86,30 +86,32 @@ export function ImportPanel({ onImportProject, onImportCommands }: ImportPanelPr
       });
     
     try {
-      const scriptData = JSON.parse(`{${jsonContent}}`);
+      const scriptData = JSON.parse(`{${jsonContent}}`) as Record<string, unknown>;
       return parseJsonScript(scriptData);
     } catch {
       throw new Error("Failed to parse Lua script format");
     }
   };
 
-  const parseJsonScript = (scriptData: any): StacyCommand[] => {
+  const parseJsonScript = (scriptData: Record<string, unknown>): StacyCommand[] => {
     const commands: StacyCommand[] = [];
     
     // Parse script data structure
-    Object.entries(scriptData).forEach(([timeKey, commandData]: [string, any]) => {
+    Object.entries(scriptData).forEach(([timeKey, commandData]) => {
       const time = parseFloat(timeKey);
       
-      if (Array.isArray(commandData)) {
+      if (Array.isArray(commandData) && commandData.length >= 2) {
         // Handle array format: [lightType, commandType, ...params]
-        const [lightType, commandType, ...params] = commandData;
+        const lightType = commandData[0] as string;
+        const commandType = commandData[1] as string;
+        const params = commandData.slice(2);
         
         const command: StacyCommand = {
           id: `imported-${Date.now()}-${Math.random()}`,
           time,
-          type: commandType,
+          type: commandType as any, // Type assertion needed for imported commands
           parameters: {
-            lightType,
+            lightType: lightType as any, // Type assertion needed for imported light types
             ...parseCommandParameters(commandType, params)
           }
         };
@@ -121,8 +123,8 @@ export function ImportPanel({ onImportProject, onImportCommands }: ImportPanelPr
     return commands.sort((a, b) => a.time - b.time);
   };
 
-  const parseCommandParameters = (commandType: string, params: any[]): any => {
-    const parameters: any = {};
+  const parseCommandParameters = (commandType: string, params: unknown[]): Record<string, unknown> => {
+    const parameters: Record<string, unknown> = {};
     
     switch (commandType) {
       case "Color":
