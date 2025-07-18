@@ -4,6 +4,7 @@ import { Timeline } from "./Timeline";
 import { EffectsPanel } from "./EffectsPanel";
 import { CommandEditor } from "./CommandEditor";
 import { ExportPanel } from "./ExportPanel";
+import { ImportPanel } from "./ImportPanel";
 import type { StacyCommand, TimelineProject } from "../types/stacypilot";
 
 export function MusicTimeline() {
@@ -61,6 +62,36 @@ export function MusicTimeline() {
     if (selectedCommand?.id === commandId) {
       setSelectedCommand(null);
     }
+  };
+
+  // Import project handler
+  const handleImportProject = (importedProject: TimelineProject) => {
+    setProject(importedProject);
+    setCommands(importedProject.commands);
+    
+    // If the imported project has an audio file, handle it
+    if (importedProject.audioFile) {
+      setAudioFile(importedProject.audioFile);
+      const url = URL.createObjectURL(importedProject.audioFile);
+      setAudioUrl(url);
+    }
+    
+    // Update duration if available
+    if (importedProject.duration > 0) {
+      setDuration(importedProject.duration);
+    }
+    
+    // Reset playback state
+    setCurrentTime(0);
+    setIsPlaying(false);
+    setSelectedCommand(null);
+  };
+
+  // Import commands handler (adds to existing project)
+  const handleImportCommands = (importedCommands: StacyCommand[]) => {
+    const updatedCommands = [...commands, ...importedCommands].sort((a, b) => a.time - b.time);
+    setCommands(updatedCommands);
+    setProject(prev => ({ ...prev, commands: updatedCommands }));
   };
 
   // Keyboard shortcuts
@@ -125,6 +156,10 @@ export function MusicTimeline() {
           >
             Load Audio
           </label>
+          <ImportPanel 
+            onImportProject={handleImportProject}
+            onImportCommands={handleImportCommands}
+          />
           <ExportPanel project={project} />
         </div>
       </header>
