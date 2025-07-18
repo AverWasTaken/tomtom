@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import type { StacyCommand, LightType } from "../types/stacypilot";
+import type { JSX } from "react";
 
 interface TimelineProps {
   duration: number;
@@ -137,7 +138,7 @@ export function Timeline({
     const scrollContainer = scrollContainerRef.current;
     if (!scrollContainer) return;
 
-    const handleScroll = () => {
+    const handleScroll = (): void => {
       setIsUserScrolling(true);
       setLastScrollTime(Date.now());
     };
@@ -163,46 +164,44 @@ export function Timeline({
   }, [isUserScrolling, lastScrollTime]);
 
   // Handle timeline click for seeking
-  const handleTimelineClick = (e: React.MouseEvent) => {
-    if (isDragging) return;
-    
-    const rect = timelineRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    
+  const handleTimelineClick = (e: React.MouseEvent): void => {
+    if (!timelineRef.current || isDragging) return;
+
+    const rect = timelineRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
-    const newTime = pixelToTime(x);
-    onTimeChange(Math.max(0, Math.min(duration, newTime)));
-    
+    const time = pixelToTime(x);
+
+    // Clamp time to valid range
+    const clampedTime = Math.max(0, Math.min(duration, time));
+    onTimeChange(clampedTime);
+
     // Force auto-scroll to resume after seeking
     setIsUserScrolling(false);
   };
 
   // Handle command drag
-  const handleCommandMouseDown = (e: React.MouseEvent, command: StacyCommand) => {
+  const handleCommandMouseDown = (e: React.MouseEvent, command: StacyCommand): void => {
     e.stopPropagation();
     setIsDragging(true);
     setDragCommand(command);
-    
-    const rect = timelineRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    
-    const commandX = timeToPixel(command.time);
-    setDragOffset(e.clientX - rect.left - commandX);
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    setDragOffset(e.clientX - rect.left);
   };
 
   // Handle mouse move for dragging
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
+    const handleMouseMove = (e: MouseEvent): void => {
       if (!isDragging || !dragCommand || !timelineRef.current) return;
-      
+
       const rect = timelineRef.current.getBoundingClientRect();
       const x = e.clientX - rect.left - dragOffset;
-      const newTime = pixelToTime(x);
-      
-      onCommandUpdate(dragCommand.id, { time: Math.max(0, Math.min(duration, newTime)) });
+      const newTime = Math.max(0, Math.min(duration, pixelToTime(x)));
+
+      onCommandUpdate(dragCommand.id, { time: newTime });
     };
 
-    const handleMouseUp = () => {
+    const handleMouseUp = (): void => {
       setIsDragging(false);
       setDragCommand(null);
       setDragOffset(0);
@@ -220,53 +219,54 @@ export function Timeline({
   }, [isDragging, dragCommand, dragOffset, duration, onCommandUpdate, pixelToTime]);
 
   // Optimized time markers generation
-  const generateTimeMarkers = () => {
-    const markers = [];
-    
-    // Adaptive interval based on zoom level to reduce DOM elements
-    let interval: number;
-    if (zoom < 0.3) {
-      interval = 30; // 30 second intervals for very zoomed out
-    } else if (zoom < 0.6) {
-      interval = 10; // 10 second intervals
-    } else if (zoom < 1.2) {
-      interval = 5; // 5 second intervals
-    } else if (zoom < 2.5) {
-      interval = 1; // 1 second intervals
-    } else {
-      interval = 0.5; // 0.5 second intervals for zoomed in
+  const generateTimeMarkers = (): JSX.Element[] => {
+    const markers: JSX.Element[] = [];
+    const pixelsPerSecond = timelineWidth / duration;
+
+    // Determine appropriate interval based on zoom level
+    let interval = 1; // seconds
+    if (pixelsPerSecond < 20) {
+      interval = 10;
+    } else if (pixelsPerSecond < 50) {
+      interval = 5;
+    } else if (pixelsPerSecond < 100) {
+      interval = 2;
     }
-    
-    // Limit total markers to prevent performance issues
-    const maxMarkers = 50;
-    const actualInterval = Math.max(interval, duration / maxMarkers);
-    
-    for (let time = 0; time <= duration; time += actualInterval) {
+
+    // Generate markers at intervals
+    for (let time = 0; time <= duration; time += interval) {
       const x = timeToPixel(time);
-      const isSecond = time % 1 === 0;
-      const isMajor = time % (actualInterval * 2) === 0;
-      
+      const isMinute = time % 60 === 0;
+
       markers.push(
         <div
           key={time}
-          className={`absolute top-0 ${
-            isMajor ? "h-full border-gray-400" : isSecond ? "h-3/4 border-gray-500" : "h-1/2 border-gray-600"
-          } border-l`}
-          style={{ left: x }}
-        >
-          {isMajor && (
-            <div className="absolute -top-6 -translate-x-1/2 text-xs text-gray-300">
-              {formatTime(time)}
-            </div>
-          )}
-        </div>
+          className={`absolute top-0 ${isMinute ? "h-6 bg-white" : "h-3 bg-gray-400"}`}
+          style={{
+            left: x,
+            width: "1px",
+          }}
+        />
       );
+
+      // Add time labels for major markers
+      if (isMinute || (interval <= 2 && time % 10 === 0)) {
+        markers.push(
+          <div
+            key={`label-${time}`}
+            className="absolute top-6 text-xs text-gray-300 transform -translate-x-1/2"
+            style={{ left: x }}
+          >
+            {formatTime(time)}
+          </div>
+        );
+      }
     }
-    
+
     return markers;
   };
 
-  const formatTime = (time: number) => {
+  const formatTime = (time: number): string => {
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
     const centiseconds = Math.floor((time % 1) * 100);
@@ -274,13 +274,14 @@ export function Timeline({
   };
 
   // Get command label based on type and parameters
-  const getCommandLabel = (command: StacyCommand) => {
+  const getCommandLabel = (command: StacyCommand): string => {
     const { type, parameters } = command;
     
     switch (type) {
       case "Color":
         if (parameters.color && typeof parameters.color === "object" && "r" in parameters.color) {
-          return `Color RGB(${parameters.color.r}, ${parameters.color.g}, ${parameters.color.b})`;
+          const colorObj = parameters.color as { r: number; g: number; b: number };
+          return `Color RGB(${colorObj.r}, ${colorObj.g}, ${colorObj.b})`;
         }
         return "Color";
       case "Cue":
@@ -302,14 +303,14 @@ export function Timeline({
   };
 
   // Get command duration (for effects that have duration)
-  const getCommandDuration = (command: StacyCommand) => {
+  const getCommandDuration = (command: StacyCommand): number => {
     // For now, return a default duration. This could be configurable
     switch (command.type) {
       case "FadeOn":
       case "FadeOff":
         return command.parameters.fadeSpeed ?? 1;
       case "Color":
-        return 2; // Color changes might have a durations
+        return 2; // Color changes might have a duration
       case "Cue":
         return 3; // Cue effects might have a duration
       default:
@@ -325,16 +326,23 @@ export function Timeline({
         <div className="h-[30px] border-b border-gray-700 bg-gray-700"></div>
         
         {/* Track labels */}
-        {LIGHT_TRACKS.map((track) => (
-          <div
-            key={track.type}
-            className="flex items-center gap-2 px-3 py-2 border-b border-gray-700 text-white text-sm"
-            style={{ height: TRACK_HEIGHT }}
-          >
-            <span>{track.icon}</span>
-            <span className="font-medium">{track.type}</span>
-          </div>
-        ))}
+        {LIGHT_TRACKS.map((track) => {
+          // Calculate the same height as the corresponding timeline track
+          const commandRows = organizeCommandsIntoTracks(track.type);
+          const rowHeight = Math.max(20, Math.floor((TRACK_HEIGHT - 24) / Math.max(1, commandRows.length))); // Account for label space
+          const actualTrackHeight = Math.max(TRACK_HEIGHT, commandRows.length * (rowHeight + 2) + 24); // Add space for track label
+          
+          return (
+            <div
+              key={track.type}
+              className="flex items-center gap-2 px-3 py-2 border-b border-gray-700 text-white text-sm"
+              style={{ height: actualTrackHeight, minHeight: TRACK_HEIGHT }}
+            >
+              <span>{track.icon}</span>
+              <span className="font-medium">{track.type}</span>
+            </div>
+          );
+        })}
       </div>
 
       {/* Timeline Area */}
@@ -381,43 +389,65 @@ export function Timeline({
               .filter((cmd) => cmd.parameters.lightType === lightTrack.type)
               .sort((a, b) => a.time - b.time);
             
+            // Organize commands into non-overlapping rows
+            const commandRows = organizeCommandsIntoTracks(lightTrack.type);
+            const rowHeight = Math.max(20, Math.floor((TRACK_HEIGHT - 24) / Math.max(1, commandRows.length))); // Account for label space
+            const actualTrackHeight = Math.max(TRACK_HEIGHT, commandRows.length * (rowHeight + 2) + 24); // Add space for track label
+            
             return (
               <div
                 key={lightTrack.type}
-                className="relative border-b border-gray-700 bg-gray-800"
-                style={{ height: TRACK_HEIGHT }}
+                className="relative border-b border-gray-700 bg-gray-800 overflow-hidden"
+                style={{ height: actualTrackHeight, minHeight: TRACK_HEIGHT }}
               >
-                {/* Commands for this track */}
-                {lightCommands.map((command) => {
-                  const x = timeToPixel(command.time);
-                  const width = Math.max(60, timeToPixel(getCommandDuration(command)));
-                  
-                  return (
-                    <div
-                      key={command.id}
-                      className="absolute top-1 bottom-1 rounded cursor-pointer border border-opacity-50 border-white hover:border-opacity-100 transition-all"
-                      style={{
-                        left: x,
-                        width: width,
-                        backgroundColor: lightTrack.color,
-                        opacity: dragCommand?.id === command.id ? 0.7 : 0.9,
-                      }}
-                      onMouseDown={(e) => handleCommandMouseDown(e, command)}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onCommandSelect(command);
-                      }}
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        onCommandDelete(command.id);
-                      }}
-                    >
-                      <div className="px-2 py-1 text-white text-xs font-medium truncate">
-                        {getCommandLabel(command)}
-                      </div>
-                    </div>
-                  );
-                })}
+                {/* Track label */}
+                <div className="absolute left-2 top-1 text-xs text-gray-300 font-medium z-10 bg-gray-800 px-1 rounded">
+                  {lightTrack.icon} {lightTrack.type}
+                </div>
+                
+                {/* Commands organized in rows */}
+                {commandRows.map((row, rowIndex) => (
+                  <div 
+                    key={rowIndex} 
+                    className="absolute w-full" 
+                    style={{ 
+                      top: rowIndex * (rowHeight + 2) + 20, // Start below track label
+                      height: rowHeight 
+                    }}
+                  >
+                    {row.map((command) => {
+                      const x = timeToPixel(command.time);
+                      const width = Math.max(60, timeToPixel(getCommandDuration(command)));
+                      
+                      return (
+                        <div
+                          key={command.id}
+                          className="absolute rounded cursor-pointer border border-opacity-50 border-white hover:border-opacity-100 transition-all"
+                          style={{
+                            left: x,
+                            width: width,
+                            height: rowHeight,
+                            backgroundColor: lightTrack.color,
+                            opacity: dragCommand?.id === command.id ? 0.7 : 0.9,
+                          }}
+                          onMouseDown={(e) => handleCommandMouseDown(e, command)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onCommandSelect(command);
+                          }}
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            onCommandDelete(command.id);
+                          }}
+                        >
+                          <div className="px-2 py-1 text-white text-xs font-medium truncate" style={{ lineHeight: `${rowHeight - 2}px` }}>
+                            {getCommandLabel(command)}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
               </div>
             );
           })}
