@@ -309,7 +309,7 @@ export function Timeline({
       case "FadeOff":
         return command.parameters.fadeSpeed ?? 1;
       case "Color":
-        return 2; // Color changes might have a duration
+        return 2; // Color changes might have a durations
       case "Cue":
         return 3; // Cue effects might have a duration
       default:
