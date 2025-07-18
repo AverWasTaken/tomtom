@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { StacyCommand, LightType, CommandType, RGB, CommandParameters, CueType, ActionType, BeamMode } from "../types/stacypilot";
+import type { JSX } from "react";
 
 interface EffectsPanelProps {
   onAddCommand: (command: Omit<StacyCommand, "id">) => void;
@@ -33,14 +34,14 @@ export function EffectsPanel({ onAddCommand, currentTime }: EffectsPanelProps) {
   const [beamMode, setBeamMode] = useState<BeamMode>("Beam");
   const [showPrestaging, setShowPrestaging] = useState(false);
 
-  const formatTime = (time: number) => {
+  const formatTime = (time: number): string => {
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
     const centiseconds = Math.floor((time % 1) * 100);
     return `${minutes}:${seconds.toString().padStart(2, "0")}.${centiseconds.toString().padStart(2, "0")}`;
   };
 
-  const handleAddCommand = (commandType?: CommandType) => {
+  const handleAddCommand = (commandType?: CommandType): void => {
     const commandToUse = commandType ?? selectedCommand;
     const parameters: CommandParameters = {
       lightType: selectedLightType,
@@ -85,7 +86,7 @@ export function EffectsPanel({ onAddCommand, currentTime }: EffectsPanelProps) {
     onAddCommand(baseCommand);
   };
 
-  const renderParameterControls = () => {
+  const renderParameterControls = (): JSX.Element | null => {
     switch (selectedCommand) {
       case "Color":
         return (
