@@ -594,7 +594,7 @@ export function EffectsPanel({ onAddCommand, currentTime }: EffectsPanelProps) {
           <div className="space-y-2">
             <h4 className="text-xs font-medium text-gray-400">Random Effects ({selectedLightType})</h4>
             <div className="grid grid-cols-1 gap-1">
-              {["Random", "FadeRandom", "OldRandom", "BumpRandom", "Strobe"].map((effect) => (
+              {["Random", "FadeRandom", "OldRandom", "BumpRandom", "Strobe", "Position.RandomCircle", "Position.RandomTilt", "Position.Circle", "Position.Tilt", "Position.SmoothTilt", "Position.SlowTilt", "Position.Pan", "Position.RandomPan", "Position.SmoothPan", "Position.SlowPan"].map((effect) => (
                 <div key={effect} className="flex gap-1">
                   <button
                     onClick={() => {
@@ -637,7 +637,7 @@ export function EffectsPanel({ onAddCommand, currentTime }: EffectsPanelProps) {
           <div className="space-y-2">
             <h4 className="text-xs font-medium text-gray-400">Scalable Effects (Both HeadsA/B)</h4>
             <div className="grid grid-cols-1 gap-1">
-              {["Random", "FadeRandom", "OldRandom", "BumpRandom", "Strobe"].map((effect) => (
+              {["Random", "FadeRandom", "OldRandom", "BumpRandom", "Strobe", "Position.RandomCircle", "Position.RandomTilt", "Position.Circle", "Position.Tilt", "Position.SmoothTilt", "Position.SlowTilt", "Position.Pan", "Position.RandomPan", "Position.SmoothPan", "Position.SlowPan"].map((effect) => (
                 <div key={effect} className="flex gap-1">
                   <button
                     onClick={() => {
