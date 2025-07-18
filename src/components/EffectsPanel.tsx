@@ -58,7 +58,7 @@ export function EffectsPanel({ onAddCommand, currentTime }: EffectsPanelProps) {
         break;
       case "Action":
         parameters.actionType = actionType;
-        parameters.actionValue = false;
+        parameters.actionValue = true;
         break;
       case "BeamMode":
         parameters.beamMode = beamMode;
