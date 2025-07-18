@@ -9,7 +9,7 @@ interface EffectsPanelProps {
 const LIGHT_TYPES: LightType[] = [
   "HeadsA", "HeadsB", "BarsA", "BarsB", 
   "LEDsA", "LEDsB", "LEDsC", 
-  "StrobesA", "StrobesB", "WashesA"
+  "StrobesA", "StrobesB", "WashesA", "WashesB"
 ];
 
 const BASIC_COMMANDS: CommandType[] = [

@@ -14,7 +14,7 @@ interface TimelineProps {
   onZoomChange: (zoom: number) => void;
 }
 
-const TRACK_HEIGHT = 40;
+const TRACK_HEIGHT = 50;
 const TIMELINE_HEIGHT = 30;
 
 // Light types with their colors for visual organization
@@ -318,7 +318,7 @@ export function Timeline({
   };
 
   return (
-    <div className="flex h-full bg-gray-900 w-full min-w-0">
+    <div className="flex bg-gray-900 w-full min-w-0">
       {/* Track Labels */}
       <div className="w-32 bg-gray-800 border-r border-gray-700">
         {/* Timeline header space */}
@@ -375,70 +375,49 @@ export function Timeline({
             </div>
           )}
 
-          {/* Tracks with sub-tracks for overlapping commands */}
+          {/* Tracks - one per light type */}
           {LIGHT_TRACKS.map((lightTrack) => {
-            const subTracks = organizeCommandsIntoTracks(lightTrack.type);
+            const lightCommands = commands
+              .filter((cmd) => cmd.parameters.lightType === lightTrack.type)
+              .sort((a, b) => a.time - b.time);
             
             return (
-              <div key={lightTrack.type} className="relative">
-                {/* Light type header */}
-                <div className="sticky left-0 z-20 bg-gray-700 border-b border-gray-600 px-2 py-1 text-xs font-medium text-gray-300 flex items-center gap-2">
-                  <span>{lightTrack.icon}</span>
-                  <span>{lightTrack.type}</span>
-                  {subTracks.length > 1 && (
-                    <span className="bg-gray-600 text-gray-200 px-1 rounded text-xs">
-                      {subTracks.length} tracks
-                    </span>
-                  )}
-                </div>
-                
-                {/* Sub-tracks */}
-                {subTracks.map((subTrack, subTrackIndex) => (
-                  <div
-                    key={`${lightTrack.type}-${subTrackIndex}`}
-                    className="relative border-b border-gray-700 bg-gray-800"
-                    style={{ height: TRACK_HEIGHT }}
-                  >
-                    {/* Commands for this sub-track */}
-                    {subTrack.map((command) => {
-                      const x = timeToPixel(command.time);
-                      const width = Math.max(60, timeToPixel(getCommandDuration(command)));
-                      
-                      return (
-                        <div
-                          key={command.id}
-                          className="absolute top-1 bottom-1 rounded cursor-pointer border border-opacity-50 border-white hover:border-opacity-100 transition-all"
-                          style={{
-                            left: x,
-                            width: width,
-                            backgroundColor: lightTrack.color,
-                            opacity: dragCommand?.id === command.id ? 0.7 : 0.9,
-                          }}
-                          onMouseDown={(e) => handleCommandMouseDown(e, command)}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onCommandSelect(command);
-                          }}
-                          onContextMenu={(e) => {
-                            e.preventDefault();
-                            onCommandDelete(command.id);
-                          }}
-                        >
-                          <div className="px-2 py-1 text-white text-xs font-medium truncate">
-                            {getCommandLabel(command)}
-                          </div>
-                        </div>
-                      );
-                    })}
-                    
-                    {/* Sub-track indicator */}
-                    {subTracks.length > 1 && (
-                      <div className="absolute right-1 top-1 text-xs text-gray-400 bg-gray-700 px-1 rounded">
-                        {subTrackIndex + 1}
+              <div
+                key={lightTrack.type}
+                className="relative border-b border-gray-700 bg-gray-800"
+                style={{ height: TRACK_HEIGHT }}
+              >
+                {/* Commands for this track */}
+                {lightCommands.map((command) => {
+                  const x = timeToPixel(command.time);
+                  const width = Math.max(60, timeToPixel(getCommandDuration(command)));
+                  
+                  return (
+                    <div
+                      key={command.id}
+                      className="absolute top-1 bottom-1 rounded cursor-pointer border border-opacity-50 border-white hover:border-opacity-100 transition-all"
+                      style={{
+                        left: x,
+                        width: width,
+                        backgroundColor: lightTrack.color,
+                        opacity: dragCommand?.id === command.id ? 0.7 : 0.9,
+                      }}
+                      onMouseDown={(e) => handleCommandMouseDown(e, command)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onCommandSelect(command);
+                      }}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        onCommandDelete(command.id);
+                      }}
+                    >
+                      <div className="px-2 py-1 text-white text-xs font-medium truncate">
+                        {getCommandLabel(command)}
                       </div>
-                    )}
-                  </div>
-                ))}
+                    </div>
+                  );
+                })}
               </div>
             );
           })}
