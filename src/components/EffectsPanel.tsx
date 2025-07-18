@@ -590,9 +590,52 @@ export function EffectsPanel({ onAddCommand, currentTime }: EffectsPanelProps) {
         <div className="space-y-3">
           <label className="block text-sm font-medium text-gray-300">Scalable Command Blocks</label>
           
-          {/* HeadsA/B Random Effects */}
+          {/* Random Effects for Selected Light Type */}
           <div className="space-y-2">
-            <h4 className="text-xs font-medium text-gray-400">Random Effects (HeadsA/B)</h4>
+            <h4 className="text-xs font-medium text-gray-400">Random Effects ({selectedLightType})</h4>
+            <div className="grid grid-cols-1 gap-1">
+              {["Random", "FadeRandom", "OldRandom", "BumpRandom", "Strobe"].map((effect) => (
+                <div key={effect} className="flex gap-1">
+                  <button
+                    onClick={() => {
+                      onAddCommand({
+                        time: currentTime,
+                        type: "Cue",
+                        parameters: {
+                          lightType: selectedLightType,
+                          cueType: effect as CueType,
+                          cueValue: true
+                        }
+                      });
+                    }}
+                    className="flex-1 px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs font-medium transition-colors"
+                  >
+                    {effect} ON
+                  </button>
+                  <button
+                    onClick={() => {
+                      onAddCommand({
+                        time: currentTime,
+                        type: "Cue",
+                        parameters: {
+                          lightType: selectedLightType,
+                          cueType: effect as CueType,
+                          cueValue: false
+                        }
+                      });
+                    }}
+                    className="flex-1 px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-medium transition-colors"
+                  >
+                    {effect} OFF
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          {/* Scalable Effects for Both HeadsA/B */}
+          <div className="space-y-2">
+            <h4 className="text-xs font-medium text-gray-400">Scalable Effects (Both HeadsA/B)</h4>
             <div className="grid grid-cols-1 gap-1">
               {["Random", "FadeRandom", "OldRandom", "BumpRandom", "Strobe"].map((effect) => (
                 <div key={effect} className="flex gap-1">
@@ -610,9 +653,9 @@ export function EffectsPanel({ onAddCommand, currentTime }: EffectsPanelProps) {
                         });
                       });
                     }}
-                    className="flex-1 px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs font-medium transition-colors"
+                    className="flex-1 px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-xs font-medium transition-colors"
                   >
-                    {effect} ON
+                    Both {effect} ON
                   </button>
                   <button
                     onClick={() => {
@@ -630,7 +673,7 @@ export function EffectsPanel({ onAddCommand, currentTime }: EffectsPanelProps) {
                     }}
                     className="flex-1 px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-medium transition-colors"
                   >
-                    {effect} OFF
+                    Both {effect} OFF
                   </button>
                 </div>
               ))}
