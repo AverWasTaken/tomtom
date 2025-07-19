@@ -349,6 +349,10 @@ export function Timeline({
       <div 
         ref={scrollContainerRef}
         className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800 min-w-0"
+        onWheel={(e) => {
+          // Enable vertical scrolling with mouse wheel
+          e.currentTarget.scrollTop += e.deltaY;
+        }}
       >
         <div
           ref={timelineRef}

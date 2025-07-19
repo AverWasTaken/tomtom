@@ -58,7 +58,8 @@ export function EffectsPanel({ onAddCommand, currentTime }: EffectsPanelProps) {
         break;
       case "Action":
         parameters.actionType = actionType;
-        parameters.actionValue = true;
+        // Action Cue 6 should always be true, others can be configurable
+        parameters.actionValue = actionType === "Cue6" ? true : true; // For now all Actions default to true
         break;
       case "BeamMode":
         parameters.beamMode = beamMode;
